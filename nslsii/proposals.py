@@ -60,7 +60,9 @@ def find_proposals(client, pi_name, cycle=None, show_title=True):
                 scan_single = proposal_results.values().first()
                 parent_path = get_parent_directory(proposal_results)
 
-                proposal_info[item["value"]] = {"pi_name": pi_name}
+                proposal_info[item["value"]] = {
+                    "pi_name": scan_single.start["proposal"]["pi_name"]
+                }
                 if cycle is not None:
                     proposal_info[item["value"]]["proposal_info"] = {
                         "cycle": cycle,
