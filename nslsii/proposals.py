@@ -1,4 +1,4 @@
-from tiled.queries import Key, Regex
+from tiled.queries import Key, Like, Regex
 from pprint import pprint
 
 
@@ -34,7 +34,7 @@ def find_proposals(client, pi_name, cycle=None, show_title=True):
     client : tiled.client.Client
         The tiled client to use for querying the data.
     pi_name : str
-        The full or first name of the principal investigator (PI) to search for.
+        The full or partial (First or Last) name of the principal investigator (PI) to search for.
     cycle : str, optional
         The cycle to filter proposals by.
     show_title : bool, optional
@@ -45,10 +45,16 @@ def find_proposals(client, pi_name, cycle=None, show_title=True):
     >>> find_proposals(tiled_reading_client, 'Smith', cycle='2026-1')
     """
 
-    results = client.search(Regex("proposal.pi_name", f"^{pi_name}"))
-    if cycle is not None:
-        results = results.search(Key("cycle") == cycle)
-    proposal_distinct = results.distinct("proposal.proposal_id", counts=True)
+    if client.is_sql:
+        results = client.search(Like("start.proposal.pi_name", f"%{pi_name}%"))
+        if cycle is not None:
+            results = results.search(Key("cycle") == cycle)
+        proposal_distinct = results.distinct("start.proposal.proposal_id", counts=True)
+    else:
+        results = client.search(Regex("proposal.pi_name", f"{pi_name}"))
+        if cycle is not None:
+            results = results.search(Key("cycle") == cycle)
+        proposal_distinct = results.distinct("proposal.proposal_id", counts=True)
 
     proposal_info = {}
     if len(proposal_distinct["metadata"]) > 0:
@@ -70,7 +76,12 @@ def find_proposals(client, pi_name, cycle=None, show_title=True):
                         "path": f"{parent_path}/{cycle}/pass-{item['value']}/",
                     }
                 else:
-                    cycle_distinct = proposal_results.distinct("cycle", counts=True)
+                    if client.is_sql:
+                        cycle_distinct = proposal_results.distinct(
+                            "start.cycle", counts=True
+                        )
+                    else:
+                        cycle_distinct = proposal_results.distinct("cycle", counts=True)
                     proposal_info[item["value"]]["proposal_info"] = [
                         {
                             "cycle": elem["value"],
